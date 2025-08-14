@@ -109,6 +109,21 @@
     });
   }
 
+  async function addPresetIfNew(w, h, options = { notifyDuplicate: true }) {
+    if (!w || !h) return false;
+    const exists = presets.some((p) => p.w === w && p.h === h);
+    if (exists) {
+      if (options.notifyDuplicate) {
+        alert(`${w}x${h} 프리셋이 이미 존재합니다.`);
+      }
+      return false;
+    }
+    presets.push({ w, h });
+    renderPresets();
+    await savePresets(presets);
+    return true;
+  }
+
   function toggleManageMode() {
     manageMode = !manageMode;
     managePresetBtn.textContent = manageMode ? "완료" : "관리";
@@ -122,16 +137,7 @@
       alert("현재 입력된 너비/높이를 먼저 입력해주세요.");
       return;
     }
-    const exists = presets.some((p) => p.w === w && p.h === h);
-    if (exists) {
-      alert(`${w}x${h} 프리셋이 이미 존재합니다.`);
-      return;
-    }
-    presets.push({ w, h });
-    // 먼저 즉시 렌더링하여 UI에 바로 반영
-    renderPresets();
-    // 저장은 비동기로 처리하고 변경 통지는 onChanged로도 동기화
-    await savePresets(presets);
+    await addPresetIfNew(w, h, { notifyDuplicate: true });
   });
 
   // 스토리지 변경 시 다른 팝업 인스턴스/지연 저장과 동기화
@@ -193,6 +199,9 @@
         (downloadId) => {
           if (chrome.runtime.lastError) {
             alert(`다운로드 오류: ${chrome.runtime.lastError.message}`);
+          } else if (typeof downloadId === "number") {
+            // 다운로드가 생성되면 해당 사이즈를 프리셋에 자동 추가(중복 안내는 생략)
+            void addPresetIfNew(w, h, { notifyDuplicate: false });
           }
         }
       );
