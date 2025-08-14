@@ -4,7 +4,6 @@
   const form = document.getElementById("imageForm");
   const previewImage = document.getElementById("previewImage");
   const addPresetBtn = document.getElementById("addPresetBtn");
-  const managePresetBtn = document.getElementById("managePresetBtn");
   const presetsContainer = document.getElementById("presetsContainer");
 
   const STORAGE_KEY = "presets";
@@ -14,7 +13,6 @@
     { w: 512, h: 512 },
   ];
   let presets = [];
-  let manageMode = false;
   let initialized = false;
 
   function clampToPositiveInteger(value) {
@@ -88,38 +86,26 @@
   function renderPresets() {
     presetsContainer.innerHTML = "";
     presets.forEach((item, index) => {
+      const itemWrap = document.createElement("span");
+      itemWrap.className = "preset-item";
+
       const btn = document.createElement("button");
       btn.className = "preset";
       btn.type = "button";
       btn.dataset.index = String(index);
       btn.textContent = `${item.w}×${item.h}`;
 
-      if (manageMode) {
-        const actions = document.createElement("span");
-        actions.className = "actions";
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "icon-btn";
+      deleteBtn.type = "button";
+      deleteBtn.title = "삭제";
+      deleteBtn.textContent = "✕";
+      deleteBtn.dataset.action = "delete";
+      deleteBtn.dataset.index = String(index);
 
-        const editBtn = document.createElement("button");
-        editBtn.className = "icon-btn";
-        editBtn.type = "button";
-        editBtn.title = "수정";
-        editBtn.textContent = "✎";
-        editBtn.dataset.action = "edit";
-        editBtn.dataset.index = String(index);
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "icon-btn";
-        deleteBtn.type = "button";
-        deleteBtn.title = "삭제";
-        deleteBtn.textContent = "🗑";
-        deleteBtn.dataset.action = "delete";
-        deleteBtn.dataset.index = String(index);
-
-        actions.appendChild(editBtn);
-        actions.appendChild(deleteBtn);
-        btn.appendChild(actions);
-      }
-
-      presetsContainer.appendChild(btn);
+      itemWrap.appendChild(btn);
+      itemWrap.appendChild(deleteBtn);
+      presetsContainer.appendChild(itemWrap);
     });
   }
 
@@ -160,7 +146,7 @@
     });
   }
 
-  managePresetBtn.addEventListener("click", () => toggleManageMode());
+  // 관리 버튼 제거에 따라 토글 기능 삭제
 
   presetsContainer.addEventListener("click", async (e) => {
     const target = e.target;
@@ -173,27 +159,7 @@
     const index = indexAttr ? parseInt(indexAttr, 10) : -1;
     if (index < 0 || index >= presets.length) return;
 
-    if (action === "edit") {
-      const item = presets[index];
-      const next = prompt("프리셋 수정 (예: 300x200)", `${item.w}x${item.h}`);
-      if (!next) return;
-      const m = String(next)
-        .trim()
-        .match(/^(\d+)\s*[xX]\s*(\d+)$/);
-      if (!m) {
-        alert("형식이 올바르지 않습니다. 예: 300x200");
-        return;
-      }
-      presets[index] = { w: parseInt(m[1], 10), h: parseInt(m[2], 10) };
-      await savePresets(presets);
-      renderPresets();
-      return;
-    }
-
     if (action === "delete") {
-      const item = presets[index];
-      const ok = confirm(`삭제하시겠습니까? (${item.w}x${item.h})`);
-      if (!ok) return;
       presets.splice(index, 1);
       await savePresets(presets);
       renderPresets();

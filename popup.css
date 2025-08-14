@@ -91,7 +91,7 @@ input[type="number"]:focus {
 .preset-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 .preset {
   background: transparent;
@@ -115,9 +115,10 @@ input[type="number"]:focus {
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 4px 6px;
+  padding: 2px 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
 }
 .icon-btn:hover {
   border-color: var(--accent);
