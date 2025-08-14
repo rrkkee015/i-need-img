@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "I-need-img - Placeholder Image Downloader",
+  "version": "1.0.0",
+  "description": "Enter width and height to quickly download placeholder images from fpoimg.com.",
+  "action": {
+    "default_title": "I-need-img",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["downloads", "storage"],
+  "host_permissions": ["https://fpoimg.com/*"]
+}

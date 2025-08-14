@@ -1,0 +1,248 @@
+(() => {
+  const widthInput = document.getElementById("width");
+  const heightInput = document.getElementById("height");
+  const form = document.getElementById("imageForm");
+  const previewImage = document.getElementById("previewImage");
+  const addPresetBtn = document.getElementById("addPresetBtn");
+  const managePresetBtn = document.getElementById("managePresetBtn");
+  const presetsContainer = document.getElementById("presetsContainer");
+
+  const STORAGE_KEY = "presets";
+  const defaultPresets = [
+    { w: 128, h: 128 },
+    { w: 256, h: 256 },
+    { w: 512, h: 512 },
+  ];
+  let presets = [];
+  let manageMode = false;
+  let initialized = false;
+
+  function clampToPositiveInteger(value) {
+    const parsed = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
+    if (Number.isNaN(parsed) || parsed < 1) return "";
+    return String(parsed);
+  }
+
+  function getValues() {
+    const w = Number(widthInput.value);
+    const h = Number(heightInput.value);
+    return { w, h };
+  }
+
+  function buildUrl(w, h) {
+    return `https://fpoimg.com/${w}x${h}`;
+  }
+
+  function updatePreview() {
+    const { w, h } = getValues();
+    if (!w || !h) {
+      previewImage.style.display = "none";
+      previewImage.removeAttribute("src");
+      return;
+    }
+    const url = buildUrl(w, h);
+    previewImage.src = url;
+    previewImage.style.display = "block";
+  }
+
+  function setValues(w, h) {
+    widthInput.value = clampToPositiveInteger(w);
+    heightInput.value = clampToPositiveInteger(h);
+    updatePreview();
+  }
+
+  // 숫자만 허용
+  ["input", "blur"].forEach((evt) => {
+    widthInput.addEventListener(evt, (e) => {
+      const before = e.target.value;
+      const after = clampToPositiveInteger(before);
+      if (before !== after) e.target.value = after;
+      updatePreview();
+    });
+    heightInput.addEventListener(evt, (e) => {
+      const before = e.target.value;
+      const after = clampToPositiveInteger(before);
+      if (before !== after) e.target.value = after;
+      updatePreview();
+    });
+  });
+
+  // Storage helpers
+  function loadPresets() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get([STORAGE_KEY], (result) => {
+        const list = Array.isArray(result[STORAGE_KEY])
+          ? result[STORAGE_KEY]
+          : null;
+        resolve(list);
+      });
+    });
+  }
+
+  function savePresets(list) {
+    return new Promise((resolve) => {
+      chrome.storage.sync.set({ [STORAGE_KEY]: list }, () => resolve());
+    });
+  }
+
+  function renderPresets() {
+    presetsContainer.innerHTML = "";
+    presets.forEach((item, index) => {
+      const btn = document.createElement("button");
+      btn.className = "preset";
+      btn.type = "button";
+      btn.dataset.index = String(index);
+      btn.textContent = `${item.w}×${item.h}`;
+
+      if (manageMode) {
+        const actions = document.createElement("span");
+        actions.className = "actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "icon-btn";
+        editBtn.type = "button";
+        editBtn.title = "수정";
+        editBtn.textContent = "✎";
+        editBtn.dataset.action = "edit";
+        editBtn.dataset.index = String(index);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "icon-btn";
+        deleteBtn.type = "button";
+        deleteBtn.title = "삭제";
+        deleteBtn.textContent = "🗑";
+        deleteBtn.dataset.action = "delete";
+        deleteBtn.dataset.index = String(index);
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+        btn.appendChild(actions);
+      }
+
+      presetsContainer.appendChild(btn);
+    });
+  }
+
+  function toggleManageMode() {
+    manageMode = !manageMode;
+    managePresetBtn.textContent = manageMode ? "완료" : "관리";
+    renderPresets();
+  }
+
+  // Preset events
+  addPresetBtn.addEventListener("click", async () => {
+    const { w, h } = getValues();
+    if (!w || !h) {
+      alert("현재 입력된 너비/높이를 먼저 입력해주세요.");
+      return;
+    }
+    const exists = presets.some((p) => p.w === w && p.h === h);
+    if (exists) {
+      alert(`${w}x${h} 프리셋이 이미 존재합니다.`);
+      return;
+    }
+    presets.push({ w, h });
+    await savePresets(presets);
+    renderPresets();
+  });
+
+  managePresetBtn.addEventListener("click", () => toggleManageMode());
+
+  presetsContainer.addEventListener("click", async (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+
+    const action = target.getAttribute("data-action");
+    const indexAttr =
+      target.getAttribute("data-index") ||
+      target.closest(".preset")?.getAttribute("data-index");
+    const index = indexAttr ? parseInt(indexAttr, 10) : -1;
+    if (index < 0 || index >= presets.length) return;
+
+    if (action === "edit") {
+      const item = presets[index];
+      const next = prompt("프리셋 수정 (예: 300x200)", `${item.w}x${item.h}`);
+      if (!next) return;
+      const m = String(next)
+        .trim()
+        .match(/^(\d+)\s*[xX]\s*(\d+)$/);
+      if (!m) {
+        alert("형식이 올바르지 않습니다. 예: 300x200");
+        return;
+      }
+      presets[index] = { w: parseInt(m[1], 10), h: parseInt(m[2], 10) };
+      await savePresets(presets);
+      renderPresets();
+      return;
+    }
+
+    if (action === "delete") {
+      const item = presets[index];
+      const ok = confirm(`삭제하시겠습니까? (${item.w}x${item.h})`);
+      if (!ok) return;
+      presets.splice(index, 1);
+      await savePresets(presets);
+      renderPresets();
+      return;
+    }
+
+    // 기본: 프리셋 적용
+    const item = presets[index];
+    setValues(item.w, item.h);
+  });
+
+  // 다운로드 동작
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { w, h } = getValues();
+    if (!w || !h) {
+      alert("너비와 높이를 올바르게 입력해주세요.");
+      return;
+    }
+    const url = buildUrl(w, h);
+    const filename = `placeholder_${w}x${h}.png`;
+
+    try {
+      // MV3에서 chrome.downloads.download 사용
+      chrome.downloads.download(
+        {
+          url,
+          filename,
+          saveAs: false,
+        },
+        (downloadId) => {
+          if (chrome.runtime.lastError) {
+            alert(`다운로드 오류: ${chrome.runtime.lastError.message}`);
+          }
+        }
+      );
+    } catch (err) {
+      alert("다운로드 중 오류가 발생했습니다.");
+    }
+  });
+
+  // 초기화: 프리셋 로드 및 렌더링 (초기 미리보기 로드는 하지 않음)
+  (async () => {
+    const loaded = await loadPresets();
+    let base =
+      Array.isArray(loaded) && loaded.length > 0
+        ? loaded.slice()
+        : defaultPresets.slice();
+
+    // 초기 로딩 도중 사용자가 추가한 프리셋과 병합
+    if (presets.length > 0) {
+      const seen = new Set(base.map((p) => `${p.w}x${p.h}`));
+      for (const p of presets) {
+        const key = `${p.w}x${p.h}`;
+        if (!seen.has(key)) {
+          base.push(p);
+          seen.add(key);
+        }
+      }
+    }
+    presets = base;
+    await savePresets(presets);
+    initialized = true;
+    renderPresets();
+  })();
+})();

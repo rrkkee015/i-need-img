@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>I-need-img</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <form id="imageForm">
+        <div class="row">
+          <label for="width">너비 (px)</label>
+          <input
+            id="width"
+            name="width"
+            type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            min="1"
+            placeholder="예: 256"
+            required
+          />
+        </div>
+        <div class="row">
+          <label for="height">높이 (px)</label>
+          <input
+            id="height"
+            name="height"
+            type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            min="1"
+            placeholder="예: 256"
+            required
+          />
+        </div>
+
+        <div class="presets" aria-label="자주 쓰는 사이즈">
+          <div class="presets-toolbar">
+            <span>프리셋</span>
+            <div class="spacer"></div>
+            <button id="addPresetBtn" type="button" class="chip">추가</button>
+            <button id="managePresetBtn" type="button" class="chip">
+              관리
+            </button>
+          </div>
+          <div id="presetsContainer" class="preset-list"></div>
+        </div>
+
+        <div class="preview">
+          <img id="previewImage" alt="미리보기" />
+        </div>
+
+        <button id="downloadBtn" type="submit" class="primary">
+          이미지 생성 및 다운로드
+        </button>
+      </form>
+      <p class="hint">파일명: <code>placeholder_{w}x{h}.png</code></p>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
