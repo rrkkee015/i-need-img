@@ -54,6 +54,19 @@ input[type="number"]:focus {
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
+select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  outline: none;
+}
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+
 .presets {
   display: flex;
   flex-direction: column;

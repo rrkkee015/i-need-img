@@ -5,6 +5,7 @@
   const previewImage = document.getElementById("previewImage");
   const addPresetBtn = document.getElementById("addPresetBtn");
   const presetsContainer = document.getElementById("presetsContainer");
+  const formatSelect = document.getElementById("format");
 
   const STORAGE_KEY = "presets";
   const defaultPresets = [
@@ -47,6 +48,74 @@
     widthInput.value = clampToPositiveInteger(w);
     heightInput.value = clampToPositiveInteger(h);
     updatePreview();
+  }
+
+  function getSelectedFormat() {
+    const v = (formatSelect?.value || "png").toLowerCase();
+    if (["png", "jpg", "jpeg", "webp"].includes(v)) return v;
+    return "png";
+  }
+
+  function getMimeTypeByFormat(fmt) {
+    switch (fmt) {
+      case "jpg":
+      case "jpeg":
+        return "image/jpeg";
+      case "webp":
+        return "image/webp";
+      case "png":
+      default:
+        return "image/png";
+    }
+  }
+
+  async function convertAndDownload(url, filename, format) {
+    const mime = getMimeTypeByFormat(format);
+    const res = await fetch(url, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`이미지 요청 실패 (${res.status})`);
+    const blob = await res.blob();
+    const bitmap = await createImageBitmap(blob);
+
+    // OffscreenCanvas 우선, 없으면 HTMLCanvasElement fallback
+    const width = bitmap.width;
+    const height = bitmap.height;
+    let outBlob;
+    if (typeof OffscreenCanvas !== "undefined") {
+      const off = new OffscreenCanvas(width, height);
+      const ctx = off.getContext("2d");
+      if (!ctx) throw new Error("캔버스 컨텍스트를 생성할 수 없습니다.");
+      // JPEG은 투명도 미지원 → 흰 배경으로 깔고 그리기
+      if (mime === "image/jpeg") {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+      }
+      ctx.drawImage(bitmap, 0, 0);
+      outBlob = await off.convertToBlob({ type: mime, quality: 0.92 });
+    } else {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("캔버스 컨텍스트를 생성할 수 없습니다.");
+      if (mime === "image/jpeg") {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+      }
+      ctx.drawImage(bitmap, 0, 0);
+      const dataUrl = canvas.toDataURL(mime, 0.92);
+      outBlob = await (await fetch(dataUrl)).blob();
+    }
+
+    const objectUrl = URL.createObjectURL(outBlob);
+    await new Promise((resolve) => {
+      chrome.downloads.download(
+        { url: objectUrl, filename, saveAs: false },
+        () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve();
+        }
+      );
+    });
   }
 
   // 숫자만 허용
@@ -186,25 +255,26 @@
       return;
     }
     const url = buildUrl(w, h);
-    const filename = `placeholder_${w}x${h}.png`;
+    const fmt = getSelectedFormat();
+    const filename = `placeholder_${w}x${h}.${fmt}`;
 
     try {
-      // MV3에서 chrome.downloads.download 사용
-      chrome.downloads.download(
-        {
-          url,
-          filename,
-          saveAs: false,
-        },
-        (downloadId) => {
-          if (chrome.runtime.lastError) {
-            alert(`다운로드 오류: ${chrome.runtime.lastError.message}`);
-          } else if (typeof downloadId === "number") {
-            // 다운로드가 생성되면 해당 사이즈를 프리셋에 자동 추가(중복 안내는 생략)
-            void addPresetIfNew(w, h, { notifyDuplicate: false });
+      if (fmt === "png") {
+        // 원본 PNG를 그대로 다운로드
+        chrome.downloads.download(
+          { url, filename, saveAs: false },
+          (downloadId) => {
+            if (chrome.runtime.lastError) {
+              alert(`다운로드 오류: ${chrome.runtime.lastError.message}`);
+            } else if (typeof downloadId === "number") {
+              void addPresetIfNew(w, h, { notifyDuplicate: false });
+            }
           }
-        }
-      );
+        );
+      } else {
+        await convertAndDownload(url, filename, fmt);
+        void addPresetIfNew(w, h, { notifyDuplicate: false });
+      }
     } catch (err) {
       alert("다운로드 중 오류가 발생했습니다.");
     }
