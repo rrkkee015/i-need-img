@@ -142,9 +142,23 @@
       return;
     }
     presets.push({ w, h });
-    await savePresets(presets);
+    // 먼저 즉시 렌더링하여 UI에 바로 반영
     renderPresets();
+    // 저장은 비동기로 처리하고 변경 통지는 onChanged로도 동기화
+    await savePresets(presets);
   });
+
+  // 스토리지 변경 시 다른 팝업 인스턴스/지연 저장과 동기화
+  if (chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "sync" || !changes[STORAGE_KEY]) return;
+      const newValue = changes[STORAGE_KEY].newValue;
+      if (Array.isArray(newValue)) {
+        presets = newValue.slice();
+        renderPresets();
+      }
+    });
+  }
 
   managePresetBtn.addEventListener("click", () => toggleManageMode());
 
@@ -224,10 +238,14 @@
   // 초기화: 프리셋 로드 및 렌더링 (초기 미리보기 로드는 하지 않음)
   (async () => {
     const loaded = await loadPresets();
-    let base =
-      Array.isArray(loaded) && loaded.length > 0
-        ? loaded.slice()
-        : defaultPresets.slice();
+    let base;
+    // 키가 아예 없을 때만 기본 프리셋 시드
+    if (Array.isArray(loaded)) {
+      base = loaded.slice();
+    } else {
+      base = defaultPresets.slice();
+      await savePresets(base);
+    }
 
     // 초기 로딩 도중 사용자가 추가한 프리셋과 병합
     if (presets.length > 0) {
@@ -241,7 +259,6 @@
       }
     }
     presets = base;
-    await savePresets(presets);
     initialized = true;
     renderPresets();
   })();
