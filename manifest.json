@@ -5,7 +5,17 @@
   "description": "Enter width and height to quickly download placeholder images from fpoimg.com.",
   "action": {
     "default_title": "I-need-img",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
   },
   "permissions": ["downloads", "storage"],
   "host_permissions": ["https://fpoimg.com/*"]
