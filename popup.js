@@ -6,6 +6,7 @@
   const addPresetBtn = document.getElementById("addPresetBtn");
   const presetsContainer = document.getElementById("presetsContainer");
   const formatSelect = document.getElementById("format");
+  const filenamePreview = document.getElementById("filenamePreview");
 
   const STORAGE_KEY = "presets";
   const defaultPresets = [
@@ -32,16 +33,23 @@
     return `https://fpoimg.com/${w}x${h}`;
   }
 
+  function buildFilename(w, h, fmt) {
+    if (w && h) return `placeholder_${w}x${h}.${fmt}`;
+    return `placeholder_{w}x{h}.${fmt}`;
+  }
+
   function updatePreview() {
     const { w, h } = getValues();
     if (!w || !h) {
       previewImage.style.display = "none";
       previewImage.removeAttribute("src");
+      updateFilenamePreview();
       return;
     }
     const url = buildUrl(w, h);
     previewImage.src = url;
     previewImage.style.display = "block";
+    updateFilenamePreview();
   }
 
   function setValues(w, h) {
@@ -54,6 +62,13 @@
     const v = (formatSelect?.value || "png").toLowerCase();
     if (["png", "jpg", "jpeg", "webp"].includes(v)) return v;
     return "png";
+  }
+
+  function updateFilenamePreview() {
+    if (!filenamePreview) return;
+    const { w, h } = getValues();
+    const fmt = getSelectedFormat();
+    filenamePreview.textContent = buildFilename(w, h, fmt);
   }
 
   function getMimeTypeByFormat(fmt) {
@@ -133,6 +148,11 @@
       updatePreview();
     });
   });
+
+  // 포맷 변경 시 파일명 미리보기 갱신
+  if (formatSelect) {
+    formatSelect.addEventListener("change", updateFilenamePreview);
+  }
 
   // Storage helpers
   function loadPresets() {
@@ -306,5 +326,6 @@
     presets = base;
     initialized = true;
     renderPresets();
+    updateFilenamePreview();
   })();
 })();
